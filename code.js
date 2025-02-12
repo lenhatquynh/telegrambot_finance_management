@@ -1,9 +1,8 @@
-const TOKEN = "xxxx";
+const TOKEN = "8039252069:AAHr4IVx94PGO_mk46WGPQqpNMQk31EkHPE";
 const API_URL = `https://api.telegram.org/bot${TOKEN}`;
-const SHEET_ID = "xxxx";
-const ADMIN_IDS = ["xxx"];
-const startMessage =
-  `
+const SHEET_ID = "12Xx0wjNkAC78vUudv5ksjdhvzSPDsfvHcyMPK-KX_5E";
+const ADMIN_IDS = ["5051988571"];
+const startMessage = `
 *Chào mừng bạn đến với ứng dụng quản lý tài chính cá nhân!*\n\n` +
   `📌 *Hướng dẫn sử dụng:*\n\n` +
   `1️⃣ *Thêm giao dịch:*\n   _Nhập theo cú pháp:_ <số tiền> <thu/chi> <mô tả>.\n` +
@@ -23,7 +22,9 @@ const startMessage =
   `   - \`/reset\`: _Xóa dữ liệu của bản thân._\n` +
   `   - \`/resetall\`: _Xóa tất cả dữ liệu (admin only)._\n\n` +
   `💡 *Lưu ý:*\n` +
-  `- Số tiền có thể nhập dạng "1234k" (1,234,000) hoặc "1tr" (1,000,000).\n`;
+  `- Số tiền có thể nhập dạng "1234k" (1,234,000) hoặc "1tr" (1,000,000).\n`
+  ;
+
 function doPost(e) {
   const { message } = JSON.parse(e.postData.contents);
   const chatId = message.chat.id;
@@ -35,14 +36,20 @@ function doPost(e) {
     return;
   }
 
+  if (text.startsWith("/start")) {
+    sendStartMessage(chatId);
+  } else if (text.startsWith("/getuid")) {
+    sendMessage(chatId, `ℹ️ *ID của bạn:* \`${userId}\``);
+  } else if (text.startsWith("/help")) {
+    sendMessage(chatId, startMessage);
+  }
+
   if (!isAuthorizedUser(userId)) {
     sendMessage(chatId, "🚫 Bạn không có quyền sử dụng bot này.");
     return;
   }
 
-  if (text.startsWith("/start")) {
-    sendStartMessage(chatId);
-  } else if (text.startsWith("/addusers") || text.startsWith("/delusers")) {
+  if (text.startsWith("/addusers") || text.startsWith("/delusers")) {
     if (!isAdmin(userId)) {
       sendMessage(chatId, "🚫 Bạn không phải là admin.");
       return;
@@ -57,10 +64,6 @@ function doPost(e) {
       resetUserSheet(chatId, userId);
     } else if (text.startsWith("/undo")) {
       undoLast(chatId, userId);
-    } else if (text.startsWith("/getuid")) {
-      sendMessage(chatId, `ℹ️ *ID của bạn:* \`${userId}\``);
-    } else if (text.startsWith("/help")) {
-      sendMessage(chatId, startMessage);
     } else {
       const transactionPattern = /^[0-9]+(k|tr)?\s+(thu|chi)\s+.+/i;
       if (transactionPattern.test(text)) {
@@ -73,18 +76,8 @@ function doPost(e) {
 function isCommand(text) {
   if (!text) return false;
 
-  const validCommands = [
-    "/start",
-    "/addusers",
-    "/delusers",
-    "/report",
-    "/reset",
-    "/undo",
-    "/getuid",
-    "/resetall",
-    "/help",
-  ];
-  if (validCommands.some((cmd) => text.startsWith(cmd))) {
+  const validCommands = ["/start", "/addusers", "/delusers", "/report", "/reset", "/undo", "/getuid", "/resetall", "/help"];
+  if (validCommands.some(cmd => text.startsWith(cmd))) {
     return true;
   }
   const transactionPattern = /^[0-9]+(k|tr)?\s+(thu|chi)\s+.+/i;
@@ -100,11 +93,7 @@ function isAuthorizedUser(userId) {
   const lastRow = sheet.getLastRow();
 
   if (lastRow < 2) return ADMIN_IDS.includes(String(userId));
-  const userIds = sheet
-    .getRange(2, 1, lastRow - 1, 1)
-    .getValues()
-    .flat()
-    .map(String);
+  const userIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat().map(String);
   return ADMIN_IDS.includes(String(userId)) || userIds.includes(String(userId));
 }
 
@@ -131,14 +120,7 @@ function ensureSheetsExist() {
   let transactionsSheet = ss.getSheetByName("transactions");
   if (!transactionsSheet) {
     transactionsSheet = ss.insertSheet("transactions");
-    transactionsSheet.appendRow([
-      "Thời gian",
-      "Uid",
-      "Tên",
-      "Loại",
-      "Số tiền",
-      "Mô tả",
-    ]);
+    transactionsSheet.appendRow(["Thời gian", "Uid", "Tên", "Loại", "Số tiền", "Mô tả"]);
   }
 
   let usersSheet = ss.getSheetByName("users");
@@ -151,26 +133,21 @@ function ensureSheetsExist() {
 function handleTransaction(chatId, text, userId, userName) {
   const [amount, type, ...desc] = text.split(" ");
   if (!isValidAmount(amount) || !["thu", "chi"].includes(type.toLowerCase())) {
-    sendMessage(
-      chatId,
-      "⚠️ *Lỗi:* Vui lòng nhập đúng cú pháp:\n`<số tiền> <thu/chi> <mô tả>`"
-    );
+    sendMessage(chatId, "⚠️ *Lỗi:* Vui lòng nhập đúng cú pháp:\n`<số tiền> <thu/chi> <mô tả>`");
     return;
   }
 
   const description = desc.join(" ");
-  const formattedDesc =
-    description.charAt(0).toUpperCase() + description.slice(1);
+  const formattedDesc = description.charAt(0).toUpperCase() + description.slice(1);
   const parsedAmount = parseAmount(amount);
-  const sheet =
-    SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
   sheet.appendRow([
     new Date(),
     userId,
     userName,
     type.toLowerCase(),
     parsedAmount,
-    formattedDesc || "Không có mô tả",
+    formattedDesc || "Không có mô tả"
   ]);
 
   const currentTime = new Date().toLocaleString("vi-VN", {
@@ -179,7 +156,7 @@ function handleTransaction(chatId, text, userId, userName) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    hour12: false,
+    hour12: false
   });
 
   const responseMessage = [
@@ -187,10 +164,8 @@ function handleTransaction(chatId, text, userId, userName) {
     "",
     `⏰ *Thời gian:* ${currentTime}`,
     `💰 *Số tiền:* ${formatCurrency(parsedAmount)}`,
-    `${type.toLowerCase() === "thu" ? "📈" : "📉"} *Loại:* ${
-      type.toLowerCase() === "thu" ? "Thu nhập" : "Chi tiêu"
-    }`,
-    `📝 *Mô tả:* ${formattedDesc || "Không có mô tả"}`,
+    `${type.toLowerCase() === "thu" ? "📈" : "📉"} *Loại:* ${type.toLowerCase() === "thu" ? "Thu nhập" : "Chi tiêu"}`,
+    `📝 *Mô tả:* ${formattedDesc || "Không có mô tả"}`
   ].join("\n");
 
   sendMessage(chatId, responseMessage);
@@ -220,20 +195,12 @@ function addUser(chatId, targetUserId) {
   const sheet = getOrCreateUserSheet();
   const lastRow = sheet.getLastRow();
 
-  const existingUsers =
-    lastRow > 1
-      ? sheet
-          .getRange(2, 1, lastRow - 1, 1)
-          .getValues()
-          .flat()
-          .map(String)
-      : [];
+  const existingUsers = lastRow > 1
+    ? sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat().map(String)
+    : [];
 
   if (existingUsers.includes(targetUserId)) {
-    sendMessage(
-      chatId,
-      `🚫 Người dùng ID ${targetUserId} đã có trong danh sách.`
-    );
+    sendMessage(chatId, `🚫 Người dùng ID ${targetUserId} đã có trong danh sách.`);
     return;
   }
 
@@ -250,11 +217,7 @@ function removeUser(chatId, targetUserId) {
     return;
   }
 
-  const userIds = sheet
-    .getRange(2, 1, lastRow - 1, 1)
-    .getValues()
-    .flat()
-    .map(String);
+  const userIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat().map(String);
   const userIndex = userIds.indexOf(String(targetUserId));
 
   if (userIndex === -1) {
@@ -286,8 +249,7 @@ function handleReport(chatId, text, userId) {
 }
 
 function generateReport(chatId, filter, dateParam, sortOrder, userId) {
-  const sheet =
-    SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
   if (!sheet) {
     sendMessage(chatId, "⚠️ *Lỗi:* Không tìm thấy sheet `transactions`.");
     return;
@@ -301,8 +263,8 @@ function generateReport(chatId, filter, dateParam, sortOrder, userId) {
   }
 
   const now = parseDate(filter, dateParam);
-  const filteredData = data.filter(
-    ([date, uid]) => uid === userId && isValidDate(new Date(date), filter, now)
+  const filteredData = data.filter(([date, uid]) =>
+    uid === userId && isValidDate(new Date(date), filter, now)
   );
 
   if (sortOrder) {
@@ -327,9 +289,7 @@ function generateReport(chatId, filter, dateParam, sortOrder, userId) {
       hour12: false,
     });
 
-    const transaction = `- \`${formatCurrency(amount)}\` : ${
-      desc || "Không có mô tả"
-    } | \`${formattedReportDate}\``;
+    const transaction = `- \`${formatCurrency(amount)}\` : ${desc || "Không có mô tả"} | \`${formattedReportDate}\``;
 
     if (type === "thu") {
       income += amount;
@@ -342,18 +302,13 @@ function generateReport(chatId, filter, dateParam, sortOrder, userId) {
 
   if (!filteredData.length) {
     const range = filter === "week" ? "tuần" : "tháng";
-    sendMessage(
-      chatId,
-      `⚠️ *Thông báo:* Không có giao dịch nào trong ${range} được yêu cầu.`
-    );
+    sendMessage(chatId, `⚠️ *Thông báo:* Không có giao dịch nào trong ${range} được yêu cầu.`);
     return;
   }
 
   const weekInfo =
     filter === "week"
-      ? `\n📅 *Thời gian:* ${now.startOfWeek.toLocaleDateString(
-          "vi-VN"
-        )} - ${now.endOfWeek.toLocaleDateString("vi-VN")}`
+      ? `\n📅 *Thời gian:* ${now.startOfWeek.toLocaleDateString("vi-VN")} - ${now.endOfWeek.toLocaleDateString("vi-VN")}`
       : "";
 
   let reportTitle;
@@ -384,21 +339,13 @@ function generateReport(chatId, filter, dateParam, sortOrder, userId) {
     "📋 *CHI TIẾT*",
     "",
     "📥 *Giao dịch thu nhập:*",
-    incomeTransactions.length
-      ? incomeTransactions.join("\n")
-      : "      💬 Không có giao dịch thu nhập",
+    incomeTransactions.length ? incomeTransactions.join("\n") : "      💬 Không có giao dịch thu nhập",
     "",
     "📤 *Giao dịch chi tiêu:*",
-    expenseTransactions.length
-      ? expenseTransactions.join("\n")
-      : "      💬 Không có giao dịch chi tiêu",
+    expenseTransactions.length ? expenseTransactions.join("\n") : "      💬 Không có giao dịch chi tiêu",
     "",
-    sortOrder
-      ? `\n🔄 *Sắp xếp:* ${sortOrder === "az" ? "Tăng dần" : "Giảm dần"}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    sortOrder ? `\n🔄 *Sắp xếp:* ${sortOrder === "az" ? "Tăng dần" : "Giảm dần"}` : "",
+  ].filter(Boolean).join("\n");
 
   sendMessage(chatId, report);
 }
@@ -409,8 +356,7 @@ function resetSheet(chatId, userId) {
       sendMessage(chatId, "🚫 Bạn không phải là admin.");
       return;
     }
-    const sheet =
-      SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
     if (!sheet) {
       sendMessage(chatId, "⚠️ *Lỗi:* Không tìm thấy sheet `transactions`.");
       return;
@@ -426,8 +372,7 @@ function resetSheet(chatId, userId) {
 
 function resetUserSheet(chatId, userId) {
   try {
-    const sheet =
-      SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
 
     if (!sheet) {
       sendMessage(chatId, "⚠️ *Lỗi:* Không tìm thấy sheet `transactions`.");
@@ -435,15 +380,13 @@ function resetUserSheet(chatId, userId) {
     }
 
     const data = sheet.getDataRange().getValues();
-    const filteredData = data.filter((row) => row[1] !== userId);
+    const filteredData = data.filter(row => row[1] !== userId);
 
     sheet.clear();
     sheet.appendRow(["Thời gian", "Uid", "Tên", "Loại", "Số tiền", "Mô tả"]);
 
     if (filteredData.length > 1) {
-      sheet
-        .getRange(2, 1, filteredData.length - 1, filteredData[0].length)
-        .setValues(filteredData.slice(1));
+      sheet.getRange(2, 1, filteredData.length - 1, filteredData[0].length).setValues(filteredData.slice(1));
     }
 
     sendMessage(chatId, "✅ *Đã xóa toàn bộ dữ liệu.*", true);
@@ -455,16 +398,13 @@ function resetUserSheet(chatId, userId) {
 
 function undoLast(chatId, userId) {
   try {
-    const sheet =
-      SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("transactions");
     if (!sheet) {
       sendMessage(chatId, "⚠️ *Lỗi:* Không tìm thấy sheet `transactions`.");
       return;
     }
     const data = sheet.getDataRange().getValues();
-    const lastUserTransactionIndex = data
-      .map((row) => row[1])
-      .lastIndexOf(userId);
+    const lastUserTransactionIndex = data.map(row => row[1]).lastIndexOf(userId);
 
     if (lastUserTransactionIndex > 0) {
       sheet.deleteRow(lastUserTransactionIndex + 1);
@@ -511,9 +451,7 @@ function parseDate(filter, dateParam) {
 }
 
 function parseAmount(amount) {
-  return (
-    parseFloat(amount.replace(/tr/gi, "000000").replace(/k/gi, "000")) || 0
-  );
+  return parseFloat(amount.replace(/tr/gi, "000000").replace(/k/gi, "000")) || 0;
 }
 
 function isValidAmount(amount) {
@@ -521,10 +459,7 @@ function isValidAmount(amount) {
 }
 
 function formatCurrency(amount) {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(amount);
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 }
 
 function sendMessage(chatId, text) {
@@ -533,23 +468,15 @@ function sendMessage(chatId, text) {
     UrlFetchApp.fetch(`${API_URL}/sendMessage`, {
       method: "post",
       contentType: "application/json",
-      payload: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "Markdown",
-      }),
+      payload: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
     });
   } else {
     const parts = splitMessage(text, MAX_MESSAGE_LENGTH);
-    parts.forEach((part) => {
+    parts.forEach(part => {
       UrlFetchApp.fetch(`${API_URL}/sendMessage`, {
         method: "post",
         contentType: "application/json",
-        payload: JSON.stringify({
-          chat_id: chatId,
-          text: part,
-          parse_mode: "Markdown",
-        }),
+        payload: JSON.stringify({ chat_id: chatId, text: part, parse_mode: "Markdown" }),
       });
     });
   }
@@ -559,7 +486,7 @@ function splitMessage(text, maxLength) {
   const parts = [];
   while (text.length > maxLength) {
     let part = text.slice(0, maxLength);
-    const lastNewLineIndex = part.lastIndexOf("\n");
+    const lastNewLineIndex = part.lastIndexOf('\n');
     if (lastNewLineIndex > -1) {
       part = text.slice(0, lastNewLineIndex + 1);
     }
