@@ -168,6 +168,4 @@ _Đảm bảo bot Telegram đã được kết nối đúng Webhook._
 - **Webhook không hoạt động:** Kiểm tra lại TOKEN và URL.
 - **Không lưu dữ liệu:** Kiểm tra Sheet ID và quyền truy cập.
 
-**_Cần tư vấn liên hệ t.me/nothing3272_**
-
 ---
