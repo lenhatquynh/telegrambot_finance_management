@@ -1,7 +1,7 @@
-const TOKEN = "8039252069:AAHr4IVx94PGO_mk46WGPQqpNMQk31EkHPE";
+const TOKEN = "xxx";
 const API_URL = `https://api.telegram.org/bot${TOKEN}`;
 const SHEET_ID = "12Xx0wjNkAC78vUudv5ksjdhvzSPDsfvHcyMPK-KX_5E";
-const ADMIN_IDS = ["5051988571"];
+const ADMIN_IDS = ["yyy"];
 const startMessage = `
 *Chào mừng bạn đến với ứng dụng quản lý tài chính cá nhân!*\n\n` +
   `📌 *Hướng dẫn sử dụng:*\n\n` +
